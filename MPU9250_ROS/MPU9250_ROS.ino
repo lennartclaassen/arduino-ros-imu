@@ -1,6 +1,8 @@
 /* rosserial communication setup */
 #include <ros.h>
 #include <std_msgs/String.h>
+#include <geometry_msgs/Vector3.h>
+
 
 /* MPU9250 Basic Example Code
 by: Kris Winer
@@ -187,7 +189,9 @@ We are also using the 400 kHz fast I2C mode by setting the TWI_FREQ to 400000L /
 #define AK8963_ADDRESS 0x0C // Address of magnetometer
 #endif
 #define AHRS true // set to false for basic data read
-#define SerialDebug true // set to true to get Serial output for debugging
+#define SerialDebug false // set to true to get Serial output for debugging
+#define serialOutputOn false // set to true to activate general serial output
+
 // Set initial input parameters
 enum Ascale {
   AFS_2G = 0,
@@ -250,60 +254,87 @@ float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor dat
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 float eInt[3] = {0.0f, 0.0f, 0.0f}; // vector to hold integral error for Mahony method
 
-//ros::NodeHandle nh;
+ros::NodeHandle nh;
 
-std_msgs::String str_msg;
+//std_msgs::String str_msg;
+geometry_msgs::Vector3 accVec;
+//geometry_msgs::Vector3 gyroVec;
+//geometry_msgs::Vector3 magVec;
 //ros::Publisher chatter("chatter", &str_msg);
+ros::Publisher accPub("acc", &accVec);
+//ros::Publisher gyroPub("gyro", &gyroVec);
+//ros::Publisher magPub("mag", &magVec);
 
-//char hello[13] = "hello world!";
+
+char hello[13] = "hello world!";
 
 
 void setup()
 {
   Wire.begin();
   // TWBR = 12; // 400 kbit/sec I2C speed
-  Serial.begin(38400);
+  if(serialOutputOn){
+    Serial.begin(38400);  //57600 for ROS?
+  }
   // Set up the interrupt pin, its set as active high, push-pull
   //LCpinMode(intPin, INPUT);
   //LCdigitalWrite(intPin, LOW);
   pinMode(myLed, OUTPUT);
   digitalWrite(myLed, HIGH);
 
-  // Read the WHO_AM_I register, this is a good test of communication
-  Serial.println("MPU9250 ");
-  Serial.print("Reading Adress...");
+  if(serialOutputOn){
+    // Read the WHO_AM_I register, this is a good test of communication
+    Serial.println("MPU9250 ");
+    Serial.print("Reading Adress...");
+  }
+  
   byte c = readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250); // Read WHO_AM_I register for MPU-9250
-  Serial.println("done!");
-  Serial.print("I AM "); Serial.print(c, HEX); Serial.print(" I should be "); Serial.println(0x71, HEX);
+  
+  if(serialOutputOn){
+    Serial.println("done!");
+    Serial.print("I AM "); Serial.print(c, HEX); Serial.print(" I should be "); Serial.println(0x71, HEX);
+  }
   
   if (c == 0x71) // WHO_AM_I should always be 0x68
   {
-    Serial.println("MPU9250 is online...");
+    if(serialOutputOn){
+      Serial.println("MPU9250 is online...");
+    }
     MPU9250SelfTest(SelfTest); // Start by performing self test and reporting values
-    Serial.print("x-axis self test: acceleration trim within : "); Serial.print(SelfTest[0],1); Serial.println("% of factory value");
-    Serial.print("y-axis self test: acceleration trim within : "); Serial.print(SelfTest[1],1); Serial.println("% of factory value");
-    Serial.print("z-axis self test: acceleration trim within : "); Serial.print(SelfTest[2],1); Serial.println("% of factory value");
-    Serial.print("x-axis self test: gyration trim within : "); Serial.print(SelfTest[3],1); Serial.println("% of factory value");
-    Serial.print("y-axis self test: gyration trim within : "); Serial.print(SelfTest[4],1); Serial.println("% of factory value");
-    Serial.print("z-axis self test: gyration trim within : "); Serial.print(SelfTest[5],1); Serial.println("% of factory value");
+    if(serialOutputOn){
+      Serial.print("x-axis self test: acceleration trim within : "); Serial.print(SelfTest[0],1); Serial.println("% of factory value");
+      Serial.print("y-axis self test: acceleration trim within : "); Serial.print(SelfTest[1],1); Serial.println("% of factory value");
+      Serial.print("z-axis self test: acceleration trim within : "); Serial.print(SelfTest[2],1); Serial.println("% of factory value");
+      Serial.print("x-axis self test: gyration trim within : "); Serial.print(SelfTest[3],1); Serial.println("% of factory value");
+      Serial.print("y-axis self test: gyration trim within : "); Serial.print(SelfTest[4],1); Serial.println("% of factory value");
+      Serial.print("z-axis self test: gyration trim within : "); Serial.print(SelfTest[5],1); Serial.println("% of factory value");
+    }
     calibrateMPU9250(gyroBias, accelBias); // Calibrate gyro and accelerometers, load biases in bias registers
 
     initMPU9250();
-    Serial.println("MPU9250 initialized for active data mode...."); // Initialize device for active mode read of acclerometer, gyroscope, and temperature
+    if(serialOutputOn){
+      Serial.println("MPU9250 initialized for active data mode...."); // Initialize device for active mode read of acclerometer, gyroscope, and temperature
+    }
     // Read the WHO_AM_I register of the magnetometer, this is a good test of communication
     byte d = readByte(AK8963_ADDRESS, WHO_AM_I_AK8963); // Read WHO_AM_I register for AK8963
-    Serial.print("AK8963 "); Serial.print("I AM "); Serial.print(d, HEX); Serial.print(" I should be "); Serial.println(0x48, HEX);
+    if(serialOutputOn){
+      Serial.print("AK8963 "); Serial.print("I AM "); Serial.print(d, HEX); Serial.print(" I should be "); Serial.println(0x48, HEX);
+    }
 
     // Get magnetometer calibration from AK8963 ROM
-    initAK8963(magCalibration); Serial.println("AK8963 initialized for active data mode...."); // Initialize device for active mode read of magnetometer
+    initAK8963(magCalibration); 
+    if(serialOutputOn){
+      Serial.println("AK8963 initialized for active data mode...."); // Initialize device for active mode read of magnetometer
+    }
     if(SerialDebug) {
     // Serial.println("Calibration values: ");
       Serial.print("X-Axis sensitivity adjustment value "); Serial.println(magCalibration[0], 2);
       Serial.print("Y-Axis sensitivity adjustment value "); Serial.println(magCalibration[1], 2);
       Serial.print("Z-Axis sensitivity adjustment value "); Serial.println(magCalibration[2], 2);
     }
-    //nh.initNode();
+    nh.initNode();
     //nh.advertise(chatter);
+    nh.advertise(accPub);
     //if(nh.connected()){
     //  Serial.println("ROS initialized");
     //}
@@ -311,9 +342,11 @@ void setup()
   else
   {
     digitalWrite(myLed, LOW);
-    Serial.print("Could not connect to MPU9250: 0x");
-    Serial.println(c, HEX);
-    //while(1) ; // Loop forever if communication doesn't happen
+    if(serialOutputOn){
+      Serial.print("Could not connect to MPU9250: 0x");
+      Serial.println(c, HEX);
+      //while(1) ; // Loop forever if communication doesn't happen
+    }
   }
 
 }
@@ -421,7 +454,8 @@ void loop()
     roll = atan2(2.0f * (q[0] * q[1] + q[2] * q[3]), q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3]);
     pitch *= 180.0f / PI;
     yaw *= 180.0f / PI;
-    yaw -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
+    //yaw -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
+    yaw -= 2.1; // Declination at Hannover, Germany is 2 degrees 7 minutes and 00 seconds on 2014-09-02
     roll *= 180.0f / PI;
     if(SerialDebug) {
       Serial.print("Yaw, Pitch, Roll: ");
@@ -451,6 +485,15 @@ void loop()
     sum = 0;
     }
   }
+  
+  //str_msg.data = hello;
+  accVec.x = ax;
+  accVec.y = ay;
+  accVec.z = az;
+  accPub.publish( &accVec );
+  //chatter.publish( &str_msg );
+  nh.spinOnce();
+  delay(1000);
 }
 
 //===================================================================================================================
@@ -1061,4 +1104,3 @@ void MahonyQuaternionUpdate(float ax, float ay, float az, float gx, float gy, fl
   q[2] = q3 * norm;
   q[3] = q4 * norm;
 }
-
