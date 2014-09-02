@@ -1,3 +1,7 @@
+/* rosserial communication setup */
+#include <ros.h>
+#include <std_msgs/String.h>
+
 /* MPU9250 Basic Example Code
 by: Kris Winer
 date: April 1, 2014
@@ -175,7 +179,7 @@ We are also using the 400 kHz fast I2C mode by setting the TWI_FREQ to 400000L /
 #define ZA_OFFSET_L 0x7E
 // Using the MSENSR-9250 breakout board, ADO is set to 0
 // Seven-bit device address is 110100 for ADO = 0 and 110101 for ADO = 1
-#define ADO 1
+#define ADO 0
 #if ADO
 #define MPU9250_ADDRESS 0x69 // Device address when ADO = 1
 #else
@@ -212,7 +216,7 @@ uint8_t Mmode = 0x02; // 2 for 8 Hz, 6 for 100 Hz continuous magnetometer data r
 float aRes, gRes, mRes; // scale resolutions per LSB for the sensors
 // Pin definitions
 int intPin = 12; // These can be changed, 2 and 3 are the Arduinos ext int pins
-int myLed = 13; // Set up pin 13 led for toggling
+const int myLed = 13; // Set up pin 13 led for toggling
 int16_t accelCount[3]; // Stores the 16-bit signed accelerometer sensor output
 int16_t gyroCount[3]; // Stores the 16-bit signed gyro sensor output
 int16_t magCount[3]; // Stores the 16-bit signed magnetometer sensor output
@@ -246,6 +250,13 @@ float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor dat
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 float eInt[3] = {0.0f, 0.0f, 0.0f}; // vector to hold integral error for Mahony method
 
+//ros::NodeHandle nh;
+
+std_msgs::String str_msg;
+//ros::Publisher chatter("chatter", &str_msg);
+
+//char hello[13] = "hello world!";
+
 
 void setup()
 {
@@ -257,32 +268,13 @@ void setup()
   //LCdigitalWrite(intPin, LOW);
   pinMode(myLed, OUTPUT);
   digitalWrite(myLed, HIGH);
-  //LCdisplay.begin(); // Ini8ialize the display
-  //LCdisplay.setContrast(58); // Set the contrast
-  // Start device display with ID of sensor
-  //LCdisplay.clearDisplay();
-  //LCdisplay.setTextSize(2);
-  //LCdisplay.setCursor(0,0); display.print("MPU9250");
-  //LCdisplay.setTextSize(1);
-  //LCdisplay.setCursor(0, 20); display.print("9-DOF 16-bit");
-  //LCdisplay.setCursor(0, 30); display.print("motion sensor");
-  //LCdisplay.setCursor(20,40); display.print("60 ug LSB");
-  //LCdisplay.display();
-  delay(1000);
-  // Set up for data display
-  //LCdisplay.setTextSize(1); // Set text size to normal, 2 is twice normal etc.
-  //LCdisplay.setTextColor(BLACK); // Set pixel color; 1 on the monochrome screen
-  //LCdisplay.clearDisplay(); // clears the screen and buffer
+
   // Read the WHO_AM_I register, this is a good test of communication
+  Serial.println("MPU9250 ");
+  Serial.print("Reading Adress...");
   byte c = readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250); // Read WHO_AM_I register for MPU-9250
-  Serial.print("MPU9250 "); Serial.print("I AM "); Serial.print(c, HEX); Serial.print(" I should be "); Serial.println(0x71, HEX);
-  //LCdisplay.setCursor(20,0); display.print("MPU9250");
-  //LCdisplay.setCursor(0,10); display.print("I AM");
-  //LCdisplay.setCursor(0,20); display.print(c, HEX);
-  //LCdisplay.setCursor(0,30); display.print("I Should Be");
-  //LCdisplay.setCursor(0,40); display.print(0x71, HEX);
-  //LCdisplay.display();
-  delay(1000);
+  Serial.println("done!");
+  Serial.print("I AM "); Serial.print(c, HEX); Serial.print(" I should be "); Serial.println(0x71, HEX);
   
   if (c == 0x71) // WHO_AM_I should always be 0x68
   {
@@ -295,32 +287,13 @@ void setup()
     Serial.print("y-axis self test: gyration trim within : "); Serial.print(SelfTest[4],1); Serial.println("% of factory value");
     Serial.print("z-axis self test: gyration trim within : "); Serial.print(SelfTest[5],1); Serial.println("% of factory value");
     calibrateMPU9250(gyroBias, accelBias); // Calibrate gyro and accelerometers, load biases in bias registers
-    //LCdisplay.clearDisplay();
-    //LCdisplay.setCursor(0, 0); display.print("MPU9250 bias");
-    //LCdisplay.setCursor(0, 8); display.print(" x y z ");
-    //LCdisplay.setCursor(0, 16); display.print((int)(1000*accelBias[0]));
-    //LCdisplay.setCursor(24, 16); display.print((int)(1000*accelBias[1]));
-    //LCdisplay.setCursor(48, 16); display.print((int)(1000*accelBias[2]));
-    //LCdisplay.setCursor(72, 16); display.print("mg");
-    //LCdisplay.setCursor(0, 24); display.print(gyroBias[0], 1);
-    //LCdisplay.setCursor(24, 24); display.print(gyroBias[1], 1);
-    //LCdisplay.setCursor(48, 24); display.print(gyroBias[2], 1);
-    //LCdisplay.setCursor(66, 24); display.print("o/s");
-    //LCdisplay.display();
-    delay(1000);
+
     initMPU9250();
     Serial.println("MPU9250 initialized for active data mode...."); // Initialize device for active mode read of acclerometer, gyroscope, and temperature
     // Read the WHO_AM_I register of the magnetometer, this is a good test of communication
     byte d = readByte(AK8963_ADDRESS, WHO_AM_I_AK8963); // Read WHO_AM_I register for AK8963
     Serial.print("AK8963 "); Serial.print("I AM "); Serial.print(d, HEX); Serial.print(" I should be "); Serial.println(0x48, HEX);
-    //LCdisplay.clearDisplay();
-    //LCdisplay.setCursor(20,0); display.print("AK8963");
-    //LCdisplay.setCursor(0,10); display.print("I AM");
-    //LCdisplay.setCursor(0,20); display.print(d, HEX);
-    //LCdisplay.setCursor(0,30); display.print("I Should Be");
-    //LCdisplay.setCursor(0,40); display.print(0x48, HEX);
-    //LCdisplay.display();
-    delay(1000);
+
     // Get magnetometer calibration from AK8963 ROM
     initAK8963(magCalibration); Serial.println("AK8963 initialized for active data mode...."); // Initialize device for active mode read of magnetometer
     if(SerialDebug) {
@@ -329,26 +302,26 @@ void setup()
       Serial.print("Y-Axis sensitivity adjustment value "); Serial.println(magCalibration[1], 2);
       Serial.print("Z-Axis sensitivity adjustment value "); Serial.println(magCalibration[2], 2);
     }
-    //LCdisplay.clearDisplay();
-    //LCdisplay.setCursor(20,0); display.print("AK8963");
-    //LCdisplay.setCursor(0,10); display.print("ASAX "); display.setCursor(50,10); display.print(magCalibration[0], 2);
-    //LCdisplay.setCursor(0,20); display.print("ASAY "); display.setCursor(50,20); display.print(magCalibration[1], 2);
-    //LCdisplay.setCursor(0,30); display.print("ASAZ "); display.setCursor(50,30); display.print(magCalibration[2], 2);
-    //LCdisplay.display();
-    delay(1000);
+    //nh.initNode();
+    //nh.advertise(chatter);
+    //if(nh.connected()){
+    //  Serial.println("ROS initialized");
+    //}
   }
   else
   {
+    digitalWrite(myLed, LOW);
     Serial.print("Could not connect to MPU9250: 0x");
     Serial.println(c, HEX);
-    while(1) ; // Loop forever if communication doesn't happen
+    //while(1) ; // Loop forever if communication doesn't happen
   }
+
 }
 
 void loop()
 {
-  // If intPin goes high, all data registers have new data
   if (readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01) { // On interrupt, check if data ready interrupt
+    //Serial.println("New Data");
     readAccelData(accelCount); // Read the x/y/z adc values
     getAres();
     // Now we'll calculate the accleration value into actual g's
@@ -409,24 +382,6 @@ void loop()
         // Print temperature in degrees Centigrade
         Serial.print("Temperature is "); Serial.print(temperature, 1); Serial.println(" degrees C"); // Print T values to tenths of s degree C
       }
-      //LCdisplay.clearDisplay();
-      //LCdisplay.setCursor(0, 0); display.print("MPU9250/AK8963");
-      //LCdisplay.setCursor(0, 8); display.print(" x y z ");
-      //LCdisplay.setCursor(0, 16); display.print((int)(1000*ax));
-      //LCdisplay.setCursor(24, 16); display.print((int)(1000*ay));
-      //LCdisplay.setCursor(48, 16); display.print((int)(1000*az));
-      //LCdisplay.setCursor(72, 16); display.print("mg");
-      //LCdisplay.setCursor(0, 24); display.print((int)(gx));
-      //LCdisplay.setCursor(24, 24); display.print((int)(gy));
-      //LCdisplay.setCursor(48, 24); display.print((int)(gz));
-      //LCdisplay.setCursor(66, 24); display.print("o/s");
-      //LCdisplay.setCursor(0, 32); display.print((int)(mx));
-      //LCdisplay.setCursor(24, 32); display.print((int)(my));
-      //LCdisplay.setCursor(48, 32); display.print((int)(mz));
-      //LCdisplay.setCursor(72, 32); display.print("mG");
-      //LCdisplay.setCursor(0, 40); display.print("Gyro T ");
-      //LCdisplay.setCursor(50, 40); display.print(temperature, 1); display.print(" C");
-      //LCdisplay.display();
       count = millis();
       digitalWrite(myLed, !digitalRead(myLed)); // toggle led
     }
@@ -478,24 +433,6 @@ void loop()
       Serial.print("rate = "); Serial.print((float)sumCount/sum, 2); Serial.println(" Hz");
     }
     
-    //LCdisplay.clearDisplay();
-    //LCdisplay.setCursor(0, 0); display.print(" x y z ");
-    //LCdisplay.setCursor(0, 8); display.print((int)(1000*ax));
-    //LCdisplay.setCursor(24, 8); display.print((int)(1000*ay));
-    //LCdisplay.setCursor(48, 8); display.print((int)(1000*az));
-    //LCdisplay.setCursor(72, 8); //LCdisplay.print("mg");
-    //LCdisplay.setCursor(0, 16); //LCdisplay.print((int)(gx));
-    //LCdisplay.setCursor(24, 16); //LCdisplay.print((int)(gy));
-    //LCdisplay.setCursor(48, 16); //LCdisplay.print((int)(gz));
-    //LCdisplay.setCursor(66, 16); //LCdisplay.print("o/s");
-    //LCdisplay.setCursor(0, 24); //LCdisplay.print((int)(mx));
-    //LCdisplay.setCursor(24, 24); //LCdisplay.print((int)(my));
-    //LCdisplay.setCursor(48, 24); //LCdisplay.print((int)(mz));
-    //LCdisplay.setCursor(72, 24); //LCdisplay.print("mG");
-    //LCdisplay.setCursor(0, 32); //LCdisplay.print((int)(yaw));
-    //LCdisplay.setCursor(24, 32); //LCdisplay.print((int)(pitch));
-    //LCdisplay.setCursor(48, 32); //LCdisplay.print((int)(roll));
-    //LCdisplay.setCursor(66, 32); //LCdisplay.print("ypr");
     // With these settings the filter is updating at a ~145 Hz rate using the Madgwick scheme and
     // >200 Hz using the Mahony scheme even though the display refreshes at only 2 Hz.
     // The filter update rate is determined mostly by the mathematical steps in the respective algorithms,
