@@ -1,0 +1,42 @@
+# temp files
+*~
+
+# directories created by ros
+*/lib/
+*/bin/
+*/build/
+*/cfg/cpp/
+*/cfg/*.cfgc
+*/CMakeFiles/
+*/msg_gen/
+*/src/*_msgs/msg/_*.py
+*/src/*_msgs/msg/_*.pyc
+*/src/*_msgs/_*.py
+*/src/*_msgs/_*.pyc
+*/msg/lisp/
+*/srv_gen/
+*/src/*/_*_.py
+*/src/*/_*_.pyc
+*/src/*/srv
+*/src/*/msg
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# ROS stuff
+.cproject
+.project
+.pydevproject
+.settings
+cmake_install.cmake
