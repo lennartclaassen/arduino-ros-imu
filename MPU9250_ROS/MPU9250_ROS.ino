@@ -345,7 +345,12 @@ void setup()
     if(serialOutputOn){
       Serial.print("Could not connect to MPU9250: 0x");
       Serial.println(c, HEX);
-      //while(1) ; // Loop forever if communication doesn't happen
+      while(1){
+          digitalWrite(myLed, HIGH);
+          delay(500);
+          digitalWrite(myLed, LOW);
+          delay(500);
+      } // Loop forever if communication doesn't happen
     }
   }
 
@@ -353,6 +358,7 @@ void setup()
 
 void loop()
 {
+  digitalWrite(myLed, LOW);
   if (readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01) { // On interrupt, check if data ready interrupt
     //Serial.println("New Data");
     readAccelData(accelCount); // Read the x/y/z adc values
@@ -487,13 +493,13 @@ void loop()
   }
   
   //str_msg.data = hello;
-  accVec.x = ax;
-  accVec.y = ay;
-  accVec.z = az;
+  accVec.x = yaw;
+  accVec.y = pitch;
+  accVec.z = roll;
   accPub.publish( &accVec );
   //chatter.publish( &str_msg );
   nh.spinOnce();
-  delay(1000);
+  delay(20); //1000?
 }
 
 //===================================================================================================================

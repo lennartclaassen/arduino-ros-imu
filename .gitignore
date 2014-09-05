@@ -40,3 +40,6 @@
 .pydevproject
 .settings
 cmake_install.cmake
+
+# Qt stuff
+*.user
