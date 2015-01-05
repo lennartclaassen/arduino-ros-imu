@@ -1,7 +1,8 @@
 /* rosserial communication setup */
 #include <ros.h>
 #include <std_msgs/String.h>
-#include <geometry_msgs/Vector3.h>
+//#include <geometry_msgs/Vector3.h>
+#include <geometry_msgs/Twist.h>
 
 
 /* MPU9250 Basic Example Code
@@ -253,15 +254,21 @@ uint32_t Now = 0; // used to calculate integration interval
 float ax, ay, az, gx, gy, gz, mx, my, mz; // variables to hold latest sensor data values
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f}; // vector to hold quaternion
 float eInt[3] = {0.0f, 0.0f, 0.0f}; // vector to hold integral error for Mahony method
+float gravX, gravY, gravZ;
+float accCompX, accCompY, accCompZ;
 
 ros::NodeHandle nh;
 
 //std_msgs::String str_msg;
 geometry_msgs::Vector3 accVec;
+geometry_msgs::Vector3 yprVec;
+//geometry_msgs::Twist msgVec;
 //geometry_msgs::Vector3 gyroVec;
 //geometry_msgs::Vector3 magVec;
 //ros::Publisher chatter("chatter", &str_msg);
 ros::Publisher accPub("acc", &accVec);
+ros::Publisher yprPub("ypr", &yprVec);
+//ros::Publisher msgPub("imu_msg", &msgVec);
 //ros::Publisher gyroPub("gyro", &gyroVec);
 //ros::Publisher magPub("mag", &magVec);
 
@@ -335,6 +342,8 @@ void setup()
     nh.initNode();
     //nh.advertise(chatter);
     nh.advertise(accPub);
+    nh.advertise(yprPub);
+    //nh.advertise(msgPub);
     //if(nh.connected()){
     //  Serial.println("ROS initialized");
     //}
@@ -461,8 +470,16 @@ void loop()
     pitch *= 180.0f / PI;
     yaw *= 180.0f / PI;
     //yaw -= 13.8; // Declination at Danville, California is 13 degrees 48 minutes and 47 seconds on 2014-04-04
-    yaw -= 2.1; // Declination at Hannover, Germany is 2 degrees 7 minutes and 00 seconds on 2014-09-02
+    //yaw -= 2.1; // Declination at Hannover, Germany is 2 degrees 7 minutes and 00 seconds on 2014-09-02
     roll *= 180.0f / PI;
+    
+    //gravity vector compensation
+    gravX = 2.0f * (q[1] * q[3] - q[0] * q[2]);
+    gravY = 2.0f * (q[0] * q[1] + q[2] * q[3]);
+    gravZ = q[0] * q[0] - q[1] * q[1] - q[2] * q[2] + q[3] * q[3];
+    //accCompX = ax - gravX;
+    //accCompY = ay - gravY;
+    //accCompZ = az - gravZ;
     if(SerialDebug) {
       Serial.print("Yaw, Pitch, Roll: ");
       Serial.print(yaw, 2);
@@ -493,13 +510,28 @@ void loop()
   }
   
   //str_msg.data = hello;
-  accVec.x = yaw;
-  accVec.y = pitch;
-  accVec.z = roll;
+  //accVec.x = ax;
+  //accVec.y = ay;
+  //accVec.z = az;
+  accVec.x = ax-gravX;
+  accVec.y = ay-gravY;
+  accVec.z = az-gravZ;
+  yprVec.x = 0.0;
+  yprVec.y = pitch;
+  yprVec.z = roll;
+  //publish message as Vec3 acceleration, Vec3 orientation
+  //msgVec.linear.x = ax;
+  //msgVec.linear.y = ay;
+  //msgVec.linear.z = az;
+  //msgVec.angular.x = yaw;
+  //msgVec.angular.y = pitch;
+  //msgVec.angular.z = roll;
+  //msgPub.publish( &msgVec );
   accPub.publish( &accVec );
+  yprPub.publish( &yprVec );
   //chatter.publish( &str_msg );
   nh.spinOnce();
-  delay(20); //1000?
+  delay(2); //1000?
 }
 
 //===================================================================================================================
